@@ -1,0 +1,54 @@
+{
+  "name": "@sol-fab/obs",
+  "version": "0.1.0",
+  "description": "Sol's observability naming/shape conventions for TypeScript services -- metric names and label vocabularies, Loki push shape, and W3C traceparent propagation. Not a metrics or logging library.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loganbnielsen/sol-obs.git"
+  },
+  "homepage": "https://github.com/loganbnielsen/sol-obs#readme",
+  "bugs": {
+    "url": "https://github.com/loganbnielsen/sol-obs/issues"
+  },
+  "keywords": [
+    "sol",
+    "observability",
+    "prometheus",
+    "loki",
+    "opentelemetry",
+    "traceparent"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
