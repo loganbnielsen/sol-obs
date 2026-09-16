@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 24 ships npm 11.x; keep CI on the same runtime that the
+          # release workflow publishes with.
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build
