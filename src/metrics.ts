@@ -25,28 +25,19 @@ export const SOL_WORKER_MESSAGE_DURATION_SECONDS = "sol_worker_message_duration_
 
 /**
  * The full, exact status vocabulary for sol_worker_messages_total{status},
- * matching framework/sol-worker/lib/worker.ml. Decode/validation failures are
- * deliberately NOT a member of this type -- they never reach the handler and
- * are never counted here at all (see SOL_WORKER_DECODE_ERRORS_TOTAL below).
- * FEAT-033's first draft invented "decode_error"/"db_error" status values
- * here; both were wrong for different reasons -- decode errors belong on the
- * separate counter, and a downstream DB failure is exactly what the "retry"
- * status is for.
+ * matching framework/sol-worker/lib/worker.ml: `ok` (the fact was handled),
+ * `fail` (the handler returned Fail -- the offset is not committed and the
+ * consumer stops) and `ack_failed` (the offset commit itself failed).
+ * Decode/validation failures are deliberately NOT a member of this type --
+ * they never reach the handler and are counted on SOL_WORKER_DECODE_ERRORS_TOTAL
+ * instead.
  *
- * FEAT-076/078 added `dead_letter`, `relay_published` and `relay_failed`
- * (worker.ml, `Retry_topics` only): `retry` counts a record for which a retry
- * was *scheduled*, while `relay_published`/`relay_failed` count whether the
- * relay's own publish of it actually landed. A cross-language dashboard must
- * include them, or a TS worker's retry/DLQ outcomes go uncounted.
+ * FEAT-113 removed Kafka message-level retry and application-level
+ * dead-lettering from the framework, which deleted `retry`, `dead_letter`,
+ * `relay_published` and `relay_failed`; FEAT-118 removed them here. A
+ * dashboard still naming them describes a contract that no longer exists.
  */
-export type WorkerMessageStatus =
-  | "ok"
-  | "error"
-  | "retry"
-  | "dead_letter"
-  | "ack_failed"
-  | "relay_published"
-  | "relay_failed";
+export type WorkerMessageStatus = "ok" | "fail" | "ack_failed";
 
 export const SOL_WORKER_DECODE_ERRORS_TOTAL = "sol_worker_decode_errors_total";
 
