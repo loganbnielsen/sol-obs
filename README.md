@@ -68,15 +68,26 @@ requests.inc({
   status_class: statusClassOf(res.statusCode),
 });
 
-const log = makeLokiPusher(process.env.LOKI_URL, "order-svc");
+const log = makeLokiPusher({
+  lokiUrl: process.env.LOKI_URL,
+  service: "order-svc",
+  labels: { team: "payments" }, // low-cardinality stream labels, Sol_obs's ?context
+});
 log("info", "order accepted", { orderId });
+
+// register as a shutdown hook so a line emitted just before the drain resolves
+// is delivered rather than dropped with the process
+await runService({ drain: () => app.close(), shutdownHooks: [() => log.flush()] });
 ```
 
 `makeLokiPusher` sends logs without blocking the service. Every line is written
 to stdout as structured JSON as well, whether or not `LOKI_URL` is set, so
-`kubectl logs` has it and a Loki outage does not lose it (OBS-048 part A). It
-reports network and non-2xx HTTP failures to `console.error` with the status and
-up to 200 characters of the response body. It does not retry or buffer logs.
+`kubectl logs` has it and a Loki outage does not lose it (OBS-048 part A). The
+`labels` are fixed at construction and carried as Loki stream labels (Loki
+requires a fixed label set), mirroring `Sol_obs.of_env`'s `?context`; `flush()`
+awaits the pushes still in flight for a shutdown hook to drain. It reports
+network and non-2xx HTTP failures to `console.error` with the status and up to
+200 characters of the response body. It does not retry or buffer logs.
 
 ## Development
 

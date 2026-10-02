@@ -13,6 +13,29 @@
 
 export type LogFields = Record<string, string>;
 
+export interface LokiPusherOptions {
+  /** When set, every line is also pushed to Loki. */
+  lokiUrl?: string;
+  /** The Loki stream's `service` label. */
+  service: string;
+  /**
+   * Additional low-cardinality stream labels, mirroring `Sol_obs.of_env`'s
+   * `?context` (team/domain/env). Loki requires a fixed label set per stream, so
+   * these are fixed at construction; `service` wins over a `labels.service`.
+   */
+  labels?: Record<string, string>;
+}
+
+export interface LokiPusher {
+  (level: string, msg: string, fields: LogFields): void;
+  /**
+   * Await the pushes still in flight. A service/worker registers this as a
+   * shutdown hook so a line emitted just before the drain resolves is sent
+   * rather than dropped with the process.
+   */
+  flush(): Promise<void>;
+}
+
 /**
  * OBS-048 part A: every log line is on stdout as well as in Loki, so
  * `kubectl logs` has it and a Loki outage does not lose it. The console copy is
@@ -22,28 +45,23 @@ function writeConsoleLine(service: string, level: string, msg: string, fields: L
   console.log(JSON.stringify({ service, level, msg, ...fields }));
 }
 
-export function makeLokiPusher(lokiUrl: string | undefined, service: string) {
-  if (!lokiUrl) {
-    return (level: string, msg: string, fields: LogFields) => {
-      writeConsoleLine(service, level, msg, fields);
-    };
-  }
+export function makeLokiPusher(opts: LokiPusherOptions): LokiPusher {
+  const stream = { ...opts.labels, service: opts.service };
+  const pending = new Set<Promise<void>>();
 
-  return (level: string, msg: string, fields: LogFields) => {
-    writeConsoleLine(service, level, msg, fields);
+  const push = ((level: string, msg: string, fields: LogFields): void => {
+    writeConsoleLine(opts.service, level, msg, fields);
+
+    const lokiUrl = opts.lokiUrl;
+    if (!lokiUrl) return;
+
     const line = Object.entries({ level, msg, ...fields })
       .map(([k, v]) => `${k}="${String(v).replace(/"/g, '\\"')}"`)
       .join(" ");
     const nanos = String(Date.now()) + "000000";
-    const body = {
-      streams: [
-        {
-          stream: { service },
-          values: [[nanos, line]],
-        },
-      ],
-    };
-    fetch(`${lokiUrl}/loki/api/v1/push`, {
+    const body = { streams: [{ stream, values: [[nanos, line]] }] };
+
+    const inFlight = fetch(`${lokiUrl}/loki/api/v1/push`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -51,11 +69,22 @@ export function makeLokiPusher(lokiUrl: string | undefined, service: string) {
       .then(async (response) => {
         if (!response.ok) {
           const detail = (await response.text().catch(() => "")).slice(0, 200);
-          console.error(`[${service}] loki push failed: HTTP ${response.status} ${detail}`);
+          console.error(`[${opts.service}] loki push failed: HTTP ${response.status} ${detail}`);
         }
       })
       .catch((err) => {
-        console.error(`[${service}] loki push failed: ${String(err)}`);
+        console.error(`[${opts.service}] loki push failed: ${String(err)}`);
       });
+
+    pending.add(inFlight);
+    void inFlight.finally(() => pending.delete(inFlight));
+  }) as LokiPusher;
+
+  push.flush = async (): Promise<void> => {
+    while (pending.size > 0) {
+      await Promise.all([...pending]);
+    }
   };
+
+  return push;
 }
