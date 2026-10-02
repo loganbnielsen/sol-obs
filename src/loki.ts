@@ -13,14 +13,24 @@
 
 export type LogFields = Record<string, string>;
 
+/**
+ * OBS-048 part A: every log line is on stdout as well as in Loki, so
+ * `kubectl logs` has it and a Loki outage does not lose it. The console copy is
+ * the structured JSON form; the Loki copy below is logfmt.
+ */
+function writeConsoleLine(service: string, level: string, msg: string, fields: LogFields): void {
+  console.log(JSON.stringify({ service, level, msg, ...fields }));
+}
+
 export function makeLokiPusher(lokiUrl: string | undefined, service: string) {
   if (!lokiUrl) {
     return (level: string, msg: string, fields: LogFields) => {
-      console.log(JSON.stringify({ service, level, msg, ...fields }));
+      writeConsoleLine(service, level, msg, fields);
     };
   }
 
   return (level: string, msg: string, fields: LogFields) => {
+    writeConsoleLine(service, level, msg, fields);
     const line = Object.entries({ level, msg, ...fields })
       .map(([k, v]) => `${k}="${String(v).replace(/"/g, '\\"')}"`)
       .join(" ");
