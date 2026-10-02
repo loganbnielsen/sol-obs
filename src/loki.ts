@@ -37,8 +37,15 @@ export function makeLokiPusher(lokiUrl: string | undefined, service: string) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-    }).catch((err) => {
-      console.error(`[${service}] loki push failed: ${String(err)}`);
-    });
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const detail = (await response.text().catch(() => "")).slice(0, 200);
+          console.error(`[${service}] loki push failed: HTTP ${response.status} ${detail}`);
+        }
+      })
+      .catch((err) => {
+        console.error(`[${service}] loki push failed: ${String(err)}`);
+      });
   };
 }

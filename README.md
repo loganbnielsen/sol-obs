@@ -72,6 +72,10 @@ const log = makeLokiPusher(process.env.LOKI_URL, "order-svc");
 log("info", "order accepted", { orderId });
 ```
 
+`makeLokiPusher` sends logs without blocking the service. It reports network and
+non-2xx HTTP failures to `console.error` with the status and up to 200 characters
+of the response body, then drops that log line. It does not retry or buffer logs.
+
 ## Development
 
 ```bash
