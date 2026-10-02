@@ -14,4 +14,4 @@ export type { WorkerMessageStatus, HttpMethod } from "./metrics.js";
 export { traceparentOf, extractTraceparent } from "./tracing.js";
 
 export { makeLokiPusher } from "./loki.js";
-export type { LogFields } from "./loki.js";
+export type { LogFields, LokiPusher, LokiPusherOptions } from "./loki.js";
