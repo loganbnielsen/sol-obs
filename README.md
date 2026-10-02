@@ -72,9 +72,11 @@ const log = makeLokiPusher(process.env.LOKI_URL, "order-svc");
 log("info", "order accepted", { orderId });
 ```
 
-`makeLokiPusher` sends logs without blocking the service. It reports network and
-non-2xx HTTP failures to `console.error` with the status and up to 200 characters
-of the response body, then drops that log line. It does not retry or buffer logs.
+`makeLokiPusher` sends logs without blocking the service. Every line is written
+to stdout as structured JSON as well, whether or not `LOKI_URL` is set, so
+`kubectl logs` has it and a Loki outage does not lose it (OBS-048 part A). It
+reports network and non-2xx HTTP failures to `console.error` with the status and
+up to 200 characters of the response body. It does not retry or buffer logs.
 
 ## Development
 

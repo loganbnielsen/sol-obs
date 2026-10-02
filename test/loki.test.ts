@@ -20,20 +20,24 @@ test("with no lokiUrl, falls back to structured console.log, no fetch", () => {
   assert.equal(parsed.orderId, "123");
 });
 
-test("with a lokiUrl, pushes to the Loki HTTP push API with the expected stream shape", async () => {
+test("with a lokiUrl, pushes to the Loki HTTP push API and still copies the line to the console", async () => {
   const calls: { url: string; body: unknown }[] = [];
+  const logs: string[] = [];
   const originalFetch = globalThis.fetch;
+  const originalLog = console.log;
   // @ts-expect-error -- test stub, narrower than the real fetch signature
   globalThis.fetch = async (url: string, opts: { body: string }) => {
     calls.push({ url, body: JSON.parse(opts.body) });
     return { ok: true } as Response;
   };
+  console.log = (line: string) => logs.push(line);
   try {
     const push = makeLokiPusher("http://loki.local", "fulfillment-worker");
     push("error", "boom", { orderId: "456" });
     await new Promise((resolve) => setTimeout(resolve, 0));
   } finally {
     globalThis.fetch = originalFetch;
+    console.log = originalLog;
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "http://loki.local/loki/api/v1/push");
@@ -41,6 +45,13 @@ test("with a lokiUrl, pushes to the Loki HTTP push API with the expected stream 
   assert.equal(body.streams[0].stream.service, "fulfillment-worker");
   assert.match(body.streams[0].values[0][1], /level="error"/);
   assert.match(body.streams[0].values[0][1], /orderId="456"/);
+  // OBS-048 part A: the line is on stdout too, so a Loki outage cannot lose it.
+  assert.equal(logs.length, 1);
+  const parsed = JSON.parse(logs[0]);
+  assert.equal(parsed.service, "fulfillment-worker");
+  assert.equal(parsed.level, "error");
+  assert.equal(parsed.msg, "boom");
+  assert.equal(parsed.orderId, "456");
 });
 
 test("reports a non-2xx Loki response with bounded detail", async () => {
