@@ -42,3 +42,21 @@ test("with a lokiUrl, pushes to the Loki HTTP push API with the expected stream 
   assert.match(body.streams[0].values[0][1], /level="error"/);
   assert.match(body.streams[0].values[0][1], /orderId="456"/);
 });
+
+test("reports a non-2xx Loki response with bounded detail", async () => {
+  const errors: string[] = [];
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  globalThis.fetch = async () => new Response("x".repeat(500), { status: 429 });
+  console.error = (message: string) => errors.push(message);
+  try {
+    makeLokiPusher("http://loki.local", "order-svc")("warn", "slow", {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalError;
+  }
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /HTTP 429/);
+  assert.ok(errors[0].length < 270);
+});
