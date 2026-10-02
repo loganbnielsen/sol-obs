@@ -1,6 +1,6 @@
 {
   "name": "@sol-fab/obs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sol's observability naming/shape conventions for TypeScript services -- metric names and label vocabularies, Loki push shape, and W3C traceparent propagation. Not a metrics or logging library.",
   "license": "Apache-2.0",
   "type": "module",
