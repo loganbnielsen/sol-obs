@@ -13,5 +13,8 @@ export type { WorkerMessageStatus, HttpMethod } from "./metrics.js";
 
 export { traceparentOf, extractTraceparent } from "./tracing.js";
 
+export { SOL_WORKLOAD_IDENTITY, workloadIdentity, resourceAttributes } from "./identity.js";
+export type { WorkloadIdentity } from "./identity.js";
+
 export { makeLokiPusher } from "./loki.js";
 export type { LogFields, LokiPusher, LokiPusherOptions } from "./loki.js";
