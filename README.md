@@ -26,6 +26,34 @@ npm install @sol-fab/obs
   header formatting/parsing for transports OpenTelemetry has no official
   carrier for (Kafka today; anything non-HTTP tomorrow).
 - **`loki.ts`** — `makeLokiPusher`, Sol's structured-log-to-Loki push shape.
+- **`identity.ts`** — `workloadIdentity`/`resourceAttributes`, Sol's semantic
+  workload identity (DEC-064): the six `SOL_*` values the deployment layer
+  injects, so a TypeScript signal is scoped exactly as an OCaml one.
+
+## Workload identity
+
+Sol renders the semantic workload identity — `workspace`, `env`, `domain`,
+`service`, `primitive`, `release` — as pod labels and injects the same six values
+as `SOL_*` environment variables (DEC-064). `@sol-fab/obs` composes them the way
+OCaml's `Sol_obs.of_env` does, so the framework, not the app, owns the vocabulary:
+
+```ts
+import { makeLokiPusher, resourceAttributes } from "@sol-fab/obs";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+
+const log = makeLokiPusher({ lokiUrl: process.env.LOKI_URL, service: "order-svc-ts" });
+// Inside a Sol manifest the Loki stream is labelled { service: SOL_SERVICE,
+// workspace, env, domain, primitive, release }, and SOL_SERVICE — the workload's
+// bare Kubernetes name — wins over "order-svc-ts", so an app-pushed stream matches
+// the collector-promoted one for the same pod.
+
+const resource = resourceFromAttributes(resourceAttributes("order-svc-ts"));
+// service.name = SOL_SERVICE, plus all six identity labels as resource attributes,
+// so a Tempo trace is scoped exactly as the logs and metrics for the same workload.
+```
+
+Outside a Sol manifest the variables are absent and the caller's `service` is used
+unchanged, so a local run still labels its stream.
 
 ## Why these three specific things
 
